@@ -1,9 +1,12 @@
 #include <Wire.h>
 #include <Kalman.h> 
 #include "ComPacket.h"
-#include <DueFlashStorage.h>
 #include "NewPing.h"
 #include "PID_v1.h"
+#include "I2C.h"
+#include <EEPROM.h>
+#include "MyEEprom.h"
+#include <PinChangeInt.h> 
 
 #define RESTRICT_PITCH 
 #define GUARD_GAIN 5
@@ -25,11 +28,6 @@
 #define SPD_PUL_R 12  
 #define SPD_INT_L 11   //interrupt L
 #define SPD_PUL_L 10   
-
-// Rutine for repeat part of the code every X miliseconds
-#define runEvery(t) for (static long _lasttime;\
-                         (uint16_t)((uint16_t)millis() - _lasttime) >= (t);\
-                         _lasttime += (t))
 
 #define MAX_DISTANCE 200 // Maximum distance we want to ping for (in centimeters). Maximum sensor distance is rated at 400-500cm.
 NewPing sonar(pingPin, echoPin, MAX_DISTANCE); // NewPing setup of pins and maximum distance.
@@ -75,10 +73,17 @@ double Angle_Car;
 double Gyro_Car;
 double Correction;
 
-char buf[100];
+String str_Angle_Car;
+String str_aggKp;
+String str_aggKi;
+String str_aggKd;     
+String str_temperature;
+String str_Correction;        
+String str_NewPara;    
+
+char buf[250];
 
 uint8_t sensorPin = A0; 
-
 
 //speed control values
 long lastSpeedError = 0;
@@ -90,16 +95,8 @@ int Position_AVG = 0;
 
 float ftmp = 0;
 
-DueFlashStorage dueFlashStorage;
-
-struct storedData {
-  float kp;
-  float ki;
-  float kd;
-  int kc;
-};
-
-storedData m_storedData;
+struct EEpromData SavingData;
+struct EEpromData ReadingData;
 
 /////////////
 
@@ -117,39 +114,31 @@ void setup() {
   Serial.begin(115200);
   Serial1.begin(115200);
 
-  aggKp=250;
-  aggKi=400;
-  aggKd=2.2;
-   
-  Serial.print("\nBalance Robot Initializing...\n"); 
+  aggKp=195;
+  aggKi=450;
+  aggKd=1.8;
+  Correction = 0;
 
-  uint8_t codeRunningForTheFirstTime = dueFlashStorage.read(0); // flash bytes will be 255 at first run
- 
-  if (codeRunningForTheFirstTime) {    
-    /* OK first time running, set defaults */
-    m_storedData.kp = aggKp;
-    m_storedData.ki = aggKi;
-    m_storedData.kd = aggKd; 
-    m_storedData.kc = Correction; 
-    
-    // write configuration struct to flash at adress 4
-    byte b2[sizeof(storedData)]; // create byte array to store the struct
-    memcpy(b2, &m_storedData, sizeof(storedData)); // copy the struct to the byte array
-    dueFlashStorage.write(4, b2, sizeof(storedData)); // write byte array to flash
+  ReadFromEEprom(&ReadingData);
 
-    // write 0 to address 0 to indicate that it is not the first time running anymore
-    dueFlashStorage.write(0, 0); 
+  if(isnan(ReadingData.kp) || isnan(ReadingData.ki) || isnan(ReadingData.kc)) {    
+    Serial.print("First Run...\n"); 
+    SavingData.kp = aggKp;
+    SavingData.ki = aggKi;
+    SavingData.kd = aggKd; 
+    SavingData.kc = Correction; 
+  
+    WritePIDintoEEPROM(&SavingData); 
   }  
- 
- /* read configuration struct from flash */
-  byte* b = dueFlashStorage.readAddress(4); // byte array which is read from flash at adress 4
-  storedData configurationFromFlash; // create a temporary struct
-  memcpy(&configurationFromFlash, b, sizeof(storedData)); // copy byte array to temporary struct
+    
+  ReadFromEEprom(&ReadingData);
 
-  aggKp = configurationFromFlash.kp;
-  aggKi = configurationFromFlash.ki;
-  aggKd = configurationFromFlash.kd;
-  Correction = configurationFromFlash.kc;
+  aggKp       = ReadingData.kp;
+  aggKi       = ReadingData.ki;
+  aggKd       = ReadingData.kd;
+  Correction  = ReadingData.kc;
+  
+  Serial.print("\nBalance Robot Initializing...\n"); 
 
   Serial.print("Kp:");
   Serial.print(aggKp);
@@ -159,9 +148,6 @@ void setup() {
 
   Serial.print(" Kd:");
   Serial.print(aggKd);
-
-  Serial.print(" Correction:");
-  Serial.print(Correction);
 
   Init();
 
@@ -204,28 +190,18 @@ void Init()
   
   Speed_Need = 0;
   Turn_Need = 0;
-  Correction = 0;
-
-  //motor speed difference (Left-Right) correction
-  lastSpeedError = 0;
-  speedAdjust = 0;
-  dSpeedError = 0;
-  adjustLMotor = 0;
-  adjustRMotor = 0;
-  SKp = 1L;
-  SKi = 0.5L;
-  SKd = 0.3L;  
-
-  attachInterrupt(SPD_INT_L, Encoder_L,FALLING);
-  attachInterrupt(SPD_INT_R, Encoder_R,FALLING);   
+  Correction = 0.0;
+  
+  PCintPort::attachInterrupt(SPD_INT_L, Encoder_L,FALLING);
+  PCintPort::attachInterrupt(SPD_INT_R, Encoder_R,FALLING);
  
   //lastTime = millis() - SampleTime;
   
 }
 
 double getVoltage(uint8_t sensorPin,uint16_t refVoltage,float dividerRatio) {    
-  analogReadResolution(12);  //A0 
-  double reading = analogRead(sensorPin) * dividerRatio * refVoltage / 4096 / 1000;   
+ 
+  double reading = analogRead(sensorPin) * dividerRatio * refVoltage / 1024 / 1000;   
   delay(2); // allow the ADC to stabilize
   return reading;
 }
@@ -296,7 +272,7 @@ void UserComunication()
 
 void CarDirection()
 {    
-  unsigned char Speed = SerialPacket.m_Buffer[1];
+   unsigned char Speed = SerialPacket.m_Buffer[1];
   switch(SerialPacket.m_Buffer[3])
   {
     case 0x00: Speed_Need = 0;Turn_Need = 0;break;
@@ -312,39 +288,56 @@ void CarDirection()
 
 void UpdateCorrection()
 {
-  m_storedData.kc = Correction; 
-
-  // write configuration struct to flash at adress 4
-  byte b2[sizeof(storedData)]; // create byte array to store the struct
-  memcpy(b2, &m_storedData, sizeof(storedData)); // copy the struct to the byte array
-  dueFlashStorage.write(4, b2, sizeof(storedData)); // write byte array to flash
-
-  // write 0 to address 0 to indicate that it is not the first time running anymore
-  dueFlashStorage.write(0, 0); 
+  SavingData.kc = Correction; 
+  WritePIDintoEEPROM(&SavingData); 
 }
 
 void loop() {      
-unsigned long timeSerial = millis();  
 
     while(1)
     { 
       if(calculateGyro())
       {  
-          PWM_Calculate();
-          Car_Control();    
-          //distance = getFilteredSonar();   
-           
-          sprintf(buf, "Data:%d:%d:%0.1f:%d:%d:%d:%d:%0.2f:%0.2f:%0.2f:%0.1f:%d:%0.1f>", 
-          pwm_l, pwm_r,Angle_Car,Speed_Need,Turn_Need,Speed_L,Speed_R,aggKp,aggKi,aggKd,temperature,Position_AVG,Correction);           
-          Serial1.println(buf);    
-          
-          /*sprintf(buf, "pwm_l:%d  pwm_r:%d  Position_Add:%d  Angle_Car:%0.1f  Gyro_Car:%0.1f Speed_Need:%d",pwm_l,pwm_r,Position_AVG,Angle_Car,Gyro_Car,Speed_Need);     
-          Serial.println(buf);*/
+        PWM_Calculate();
+        Car_Control();    
+        //distance = getFilteredSonar();          
+       
+        str_Angle_Car   = getString(Angle_Car);
+        str_aggKp       = getString(aggKp);
+        str_aggKi       = getString(aggKi);
+        str_aggKd       = getString(aggKd);    
+        str_temperature = getString(temperature);
+        str_Correction  = getString(Correction);              
+        
+        sprintf(buf, "Data:%d:%d:%s:%d:%d:%d:%d:%s:%s:%s:%s:%d:%s>", 
+        pwm_l, pwm_r,str_Angle_Car.c_str(),Speed_Need,Turn_Need,Speed_L,Speed_R,str_aggKp.c_str(),str_aggKi.c_str(),str_aggKd.c_str(),str_temperature.c_str(),Position_AVG,str_Correction.c_str());
+        Serial1.println(buf);       
       }  
 
       UserComunication();         
       
     }    
+}
+
+String getString(float Value)
+{
+   String temp;
+   temp = String(int(Value))+ "."+String(getDecimal(Value,1));
+   return temp;
+}
+
+long getDecimal(float Value, int Digits)
+{
+
+  float temp = Value - (long)(Value);  
+  long p = 1;
+  for (int i=0; i< Digits; i++) p*=10;
+  long DecimalPart = p * temp;  
+  
+  if(DecimalPart>0)return(DecimalPart);         
+  else if(DecimalPart<0)return((-1)*DecimalPart); 
+  else return(DecimalPart);      
+     
 }
 
 void initGyro() { 
@@ -399,6 +392,7 @@ int calculateGyro()
 { 
   if((micros() - timer) >= 10000) 
   {    //10ms 
+    
      /* Update all the values */
     while (i2cRead(0x3B, i2cData, 14));
     accX = (int16_t)((i2cData[0] << 8) | i2cData[1]);
@@ -490,29 +484,15 @@ void Encoder_R()    //car up is positive car down  is negative
   Serial.println(buf);*/
 }
 
-void correctSpeedDiff() 
-{
-  dSpeedError = Speed_Diff - lastSpeedError;
-  
-  speedAdjust = (SKp*Speed_Diff)
-              + (SKi*Speed_Diff_ALL)
-              + (SKd*dSpeedError);
-
-  adjustLMotor -= speedAdjust/2 ;
-  adjustRMotor += speedAdjust/2 ;  
-  
-  lastSpeedError = Speed_Diff;
-
-}
-
 bool StopFlag = true;
+
 
 float integrated_error = 0;
 int count = 0,last_count;
 float pTerm,iTerm,dTerm,last_error,pTerm_Wheel,dTerm_Wheel;
 float Kp_Wheel,Kd_Wheel,K;
 
-int getPid(float targetPosition, float currentPosition)   {
+int calculatePositionPid(float targetPosition, float currentPosition)   {
   Kp_Wheel = 1;
   Kd_Wheel = 1;
   K=1;
@@ -614,7 +594,7 @@ void Car_Control()
     pwm_r = -pwm_r;
   }  
   
-  if( Angle_Car > 40 || Angle_Car < -40 )
+  if( Angle_Car > 55 || Angle_Car < -55 )
   {
     pwm_l = 0;
     pwm_r = 0;
@@ -637,22 +617,23 @@ void UpdatePID()
     case 0x02:aggKi = NewPara;break;
     case 0x03:aggKd = NewPara;break;
     default:break;
-  }
-
-  sprintf(buf,"UpdatePID: %0.2X VAL: %0.2f Kp: %0.2f Ki: %0.2f Kd: %0.2f",SerialPacket.m_Buffer[3],NewPara,aggKp,aggKi,aggKd);
-  Serial.println(buf); 
+  }  
  
-  m_storedData.kp = aggKp;
-  m_storedData.ki = aggKi;
-  m_storedData.kd = aggKd; 
+  SavingData.kp = aggKp;
+  SavingData.ki = aggKi;
+  SavingData.kd = aggKd; 
+  SavingData.kc = Correction; 
 
-  // write configuration struct to flash at adress 4
-  byte b2[sizeof(storedData)]; // create byte array to store the struct
-  memcpy(b2, &m_storedData, sizeof(storedData)); // copy the struct to the byte array
-  dueFlashStorage.write(4, b2, sizeof(storedData)); // write byte array to flash
-
-  // write 0 to address 0 to indicate that it is not the first time running anymore
-  dueFlashStorage.write(0, 0); 
+  WritePIDintoEEPROM(&SavingData); 
+  
+  str_aggKp       = getString(aggKp);
+  str_aggKi       = getString(aggKi);
+  str_aggKd       = getString(aggKd);  
+  str_NewPara     = getString(NewPara);   
+  
+  sprintf(buf,"UpdatePID: %0.2X VAL: %s Kp: %s Ki: %s Kd: %s",SerialPacket.m_Buffer[3],str_NewPara.c_str(),str_aggKp.c_str(),str_aggKi.c_str(),str_aggKd.c_str());
+  Serial.println(buf); 
+  
 }
 
 /*// PID-control values
