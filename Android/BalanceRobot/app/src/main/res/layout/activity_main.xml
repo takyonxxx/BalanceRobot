@@ -1,0 +1,299 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/content_main"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:paddingBottom="@dimen/activity_vertical_margin"
+    android:paddingLeft="@dimen/activity_horizontal_margin"
+    android:paddingRight="@dimen/activity_horizontal_margin"
+    android:paddingTop="@dimen/activity_vertical_margin"
+    android:background="#008888"
+    tools:context="com.balancerobot.MainActivity">
+
+    <android.support.v7.widget.Toolbar
+        android:id="@+id/toolbar"
+        android:layout_width="match_parent"
+        android:layout_height="35dp"
+        android:background="@color/colorPressedStart"
+        app:popupTheme="@style/AppTheme" />
+
+    <TextView
+        android:id="@+id/text_status"
+        android:text="Not Connected..."
+        android:layout_width="match_parent"
+        android:layout_height="30dp"
+        android:textSize="12sp"
+        android:textColor="#FFF"
+        android:background="@color/textback"
+        android:layout_below="@+id/toolbar"
+        android:layout_marginTop="3dp"
+        android:padding="8dp" />
+
+    <TextView
+        android:id="@+id/textPwmL"
+        android:background="@drawable/textshape"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:padding="0dp"
+        android:text="PL: 0"
+        android:gravity="center"
+        android:textColor="@color/colorPrimary"
+        android:textSize="16sp"
+        android:layout_marginRight="1dp"
+        android:layout_marginLeft="1dp"
+        android:textStyle="bold"
+        android:layout_alignBaseline="@+id/Forward"
+        android:layout_alignBottom="@+id/Forward"
+        android:layout_alignStart="@+id/Left"
+        android:layout_alignEnd="@+id/Left" />
+
+    <TextView
+        android:id="@+id/textPwmR"
+        android:background="@drawable/textshape"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:padding="0dp"
+        android:text="PR: 0"
+        android:gravity="center"
+        android:textColor="@color/colorPrimary"
+        android:textSize="16sp"
+        android:layout_marginRight="1dp"
+        android:layout_marginLeft="1dp"
+        android:textStyle="bold"
+        android:layout_alignBaseline="@+id/Forward"
+        android:layout_alignBottom="@+id/Forward"
+        android:layout_alignStart="@+id/Right"
+        android:layout_alignEnd="@+id/Right" />
+
+
+    <TextView
+        android:id="@+id/textAngle"
+        android:background="@drawable/textshape"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:padding="0dp"
+        android:text="A: 0"
+        android:gravity="center"
+        android:textColor="@color/colorPrimary"
+        android:textSize="16sp"
+        android:layout_marginRight="1dp"
+        android:layout_marginLeft="1dp"
+        android:textStyle="bold"
+        android:layout_alignStart="@+id/textPwmR"
+        android:layout_alignEnd="@+id/Right"
+        android:layout_alignBottom="@+id/Back"
+        android:layout_alignTop="@+id/textSpeedL" />
+
+    <TextView
+        android:id="@+id/textSpeedR"
+        android:background="@drawable/textshape"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:padding="0dp"
+        android:text="R: 0"
+        android:gravity="center"
+        android:textColor="@color/colorPrimary"
+        android:textSize="16sp"
+        android:layout_marginRight="1dp"
+        android:layout_marginLeft="1dp"
+        android:textStyle="bold"
+        android:layout_alignBottom="@+id/Back"
+        android:layout_alignEnd="@+id/Left"
+        android:layout_alignStart="@+id/textSpeedL" />
+
+    <TextView
+        android:id="@+id/textSpeedL"
+        android:background="@drawable/textshape"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:padding="0dp"
+        android:text="L: 0"
+        android:gravity="center"
+        android:textColor="@color/colorPrimary"
+        android:textSize="16sp"
+        android:layout_marginRight="1dp"
+        android:layout_marginLeft="1dp"
+        android:textStyle="bold"
+        android:layout_alignTop="@+id/Back"
+        android:layout_alignEnd="@+id/Left"
+        android:layout_alignStart="@+id/textPwmL" />
+
+    <TextView
+        android:id="@+id/textView_Speed1"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_below="@+id/text_status"
+        android:background="@drawable/textshape"
+        android:gravity="center"
+        android:textColor="#003300"
+        android:text="Forward-Reverse Speed : 0" />
+
+    <SeekBar
+        android:id="@+id/seekBar_Speed1"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_below="@+id/textView_Speed1"
+        android:indeterminate="false"
+        android:layout_marginLeft="3dp"
+        android:layout_marginRight="3dp"
+        android:max="100"
+        android:progress="0" />
+
+    <TextView
+        android:id="@+id/textView_Speed2"
+        android:layout_width="fill_parent"
+        android:layout_height="wrap_content"
+        android:layout_below="@+id/seekBar_Speed1"
+        android:background="@drawable/textshape"
+        android:gravity="center"
+        android:textColor="#003300"
+        android:text="Turn Speed : 0" />
+
+    <SeekBar
+        android:id="@+id/seekBar_Speed2"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_below="@+id/textView_Speed2"
+        android:layout_marginLeft="3dp"
+        android:layout_marginRight="3dp"
+        android:max="0"
+        android:progress="0"
+        android:secondaryProgress="0" />
+
+    <Button
+        android:id="@+id/Forward"
+        android:layout_width="wrap_content"
+        android:layout_height="50dip"
+        android:layout_below="@+id/seekBar_Speed2"
+        android:layout_centerHorizontal="true"
+        android:layout_margin="8dip"
+        android:background="@drawable/custom_button"
+        android:textColor="@color/white1"
+        android:text="Forward" />
+
+    <Button
+        android:id="@+id/Left"
+        android:layout_width="wrap_content"
+        android:layout_height="50dip"
+        android:layout_below="@+id/Forward"
+        android:layout_margin="8dip"
+        android:layout_toLeftOf="@+id/Stop"
+        android:background="@drawable/custom_button"
+        android:textColor="@color/white1"
+        android:text="Left" />
+
+    <Button
+        android:id="@+id/Right"
+        android:layout_width="wrap_content"
+        android:layout_height="50dip"
+        android:layout_below="@+id/Forward"
+        android:layout_margin="8dip"
+        android:layout_toRightOf="@+id/Stop"
+        android:background="@drawable/custom_button"
+        android:textColor="@color/white1"
+        android:text="Right" />
+
+    <Button
+        android:id="@+id/Stop"
+        android:layout_width="wrap_content"
+        android:layout_height="50dip"
+        android:layout_below="@+id/Forward"
+        android:layout_centerHorizontal="true"
+        android:layout_margin="8dip"
+        android:background="@drawable/custom_button"
+        android:textColor="@color/white1"
+        android:text="Stop" />
+
+    <Button
+        android:id="@+id/Back"
+        android:layout_width="wrap_content"
+        android:layout_height="50dip"
+        android:layout_below="@+id/Stop"
+        android:layout_centerHorizontal="true"
+        android:layout_margin="8dip"
+        android:background="@drawable/custom_button"
+        android:textColor="@color/white1"
+        android:text="Back" />
+    <Button
+        android:id="@+id/Pids"
+        android:layout_width="wrap_content"
+        android:layout_height="35dp"
+        android:layout_centerHorizontal="true"
+        android:background="@drawable/custom_button"
+        android:layout_margin="4dip"
+        android:textColor="@color/white1"
+        android:layout_below="@+id/Back"
+        android:text="PIDSET" />
+
+    <Button
+        android:id="@+id/C_Plus"
+        android:layout_width="wrap_content"
+        android:layout_height="35dp"
+        android:layout_centerHorizontal="true"
+        android:background="@drawable/custom_button"
+        android:textColor="@color/white1"
+        android:layout_below="@+id/Back"
+        android:layout_margin="4dip"
+        android:layout_toRightOf="@+id/Stop"
+        android:text="Correct +" />
+
+    <Button
+        android:id="@+id/C_Mines"
+        android:layout_width="wrap_content"
+        android:layout_height="35dp"
+        android:layout_centerHorizontal="true"
+        android:background="@drawable/custom_button"
+        android:textColor="@color/white1"
+        android:layout_below="@+id/Back"
+        android:layout_margin="4dip"
+        android:layout_toLeftOf="@+id/Stop"
+        android:text="Correct -" />
+
+
+    <ListView
+        android:id="@+id/in"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:stackFromBottom="true"
+        android:transcriptMode="alwaysScroll"
+        android:layout_above="@+id/button_send"
+        android:background="#222"
+        android:layout_below="@+id/Pids" />
+
+    <Button
+        android:id="@+id/button_send"
+        android:layout_width="wrap_content"
+        android:layout_height="30dp"
+        style="?android:attr/buttonStyleSmall"
+        android:textColor="#FFF"
+        android:textSize="12sp"
+        android:layout_marginLeft="3dp"
+        android:background="@drawable/custom_button"
+        android:text="Send Command"
+        android:layout_weight="1"
+        android:layout_marginTop="3dp"
+        android:layout_alignParentBottom="true"
+        android:layout_alignParentRight="true"
+        />
+
+    <EditText
+        android:id="@+id/edit_text_out"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:inputType="textShortMessage|textMultiLine"
+        android:maxLines="4"
+        android:textSize="12sp"
+        android:layout_marginRight="3dp"
+        android:layout_marginTop="3dp"
+        android:layout_alignParentBottom="true"
+        android:layout_alignParentLeft="true"
+        android:background="@color/textback"
+        android:textColor="#FFF"
+        android:layout_toStartOf="@+id/button_send"
+        android:layout_below="@+id/in" />
+
+</RelativeLayout>
+
