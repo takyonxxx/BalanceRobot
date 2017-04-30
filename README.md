@@ -1,10 +1,10 @@
-Balance Robot Arduino Due
+Balance Robot Arduino Due or Mega
 
 The Balance Robot uses:
 
 18650 battery holder,
 
-Arduino DUE,
+Arduino DUE / MEGA,
 
 2 x 12V 37mm 350 Rpm 30:1 DC GearMotor with Encoder
 
