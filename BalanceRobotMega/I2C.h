@@ -50,3 +50,4 @@ uint8_t i2cRead(uint8_t registerAddress, uint8_t *data, uint8_t nbytes) {
   }
   return 0; // Success
 }
+

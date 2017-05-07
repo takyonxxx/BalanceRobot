@@ -118,8 +118,8 @@ void setup() {
   Serial1.begin(115200);
 
   aggKp=195;
-  aggKi=450;
-  aggKd=1.8;
+  aggKi=475;
+  aggKd=2.4;
    
   Serial.print("\nBalance Robot Initializing...\n"); 
 

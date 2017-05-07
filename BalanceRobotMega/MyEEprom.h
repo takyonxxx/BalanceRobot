@@ -47,3 +47,4 @@ void ReadFromEEprom(struct EEpromData *ReadingData)
     #endif
 }
 #endif
+

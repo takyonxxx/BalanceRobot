@@ -85,12 +85,6 @@ char buf[250];
 
 uint8_t sensorPin = A0; 
 
-//speed control values
-long lastSpeedError = 0;
-long speedAdjust = 0;
-long dSpeedError,adjustLMotor,adjustRMotor;
-long SKp ,SKi ,SKd;
-
 int Position_AVG = 0;
 
 float ftmp = 0;
@@ -109,14 +103,21 @@ double aggKp, aggKi, aggKd;
 //Specify the links and initial tuning parameters
 PID balancePID(&Input, &Output, &Setpoint, aggKp, aggKi, aggKd, DIRECT);
 
+
+// Rutine for repeat part of the code every X miliseconds
+#define runEvery(t) for (static long _lasttime;\
+                         (uint16_t)((uint16_t)millis() - _lasttime) >= (t);\
+                         _lasttime += (t))
+
+
 void setup() {
 
   Serial.begin(115200);
   Serial1.begin(115200);
 
   aggKp=195;
-  aggKi=450;
-  aggKd=1.8;
+  aggKi=475;
+  aggKd=2.4;
   Correction = 0;
 
   ReadFromEEprom(&ReadingData);
@@ -292,17 +293,17 @@ void UpdateCorrection()
   WritePIDintoEEPROM(&SavingData); 
 }
 
-void loop() {      
+void loop() {  
 
-    while(1)
-    { 
-      if(calculateGyro())
-      {  
+     runEvery(10)
+     { 
+        calculateGyro();
         PWM_Calculate();
         Car_Control();    
-        //distance = getFilteredSonar();          
-       
-        str_Angle_Car   = getString(Angle_Car);
+        //distance = getFilteredSonar(); 
+        UserComunication();             
+        
+        str_Angle_Car   = getString(Input);
         str_aggKp       = getString(aggKp);
         str_aggKi       = getString(aggKi);
         str_aggKd       = getString(aggKd);    
@@ -312,11 +313,7 @@ void loop() {
         sprintf(buf, "Data:%d:%d:%s:%d:%d:%d:%d:%s:%s:%s:%s:%d:%s>", 
         pwm_l, pwm_r,str_Angle_Car.c_str(),Speed_Need,Turn_Need,Speed_L,Speed_R,str_aggKp.c_str(),str_aggKi.c_str(),str_aggKd.c_str(),str_temperature.c_str(),Position_AVG,str_Correction.c_str());
         Serial1.println(buf);       
-      }  
-
-      UserComunication();         
-      
-    }    
+     }
 }
 
 String getString(float Value)
@@ -389,10 +386,7 @@ void initGyro() {
 }
 
 int calculateGyro()
-{ 
-  if((micros() - timer) >= 10000) 
-  {    //10ms 
-    
+{   
      /* Update all the values */
     while (i2cRead(0x3B, i2cData, 14));
     accX = (int16_t)((i2cData[0] << 8) | i2cData[1]);
@@ -456,9 +450,7 @@ int calculateGyro()
     
     temperature = (double)tempRaw / 340.0 + 36.53;
    
-    return 1;
-   }
-  return 0;
+    return 1;  
 }
 
 void Encoder_L()   //car up is positive car down  is negative
@@ -486,39 +478,11 @@ void Encoder_R()    //car up is positive car down  is negative
 
 bool StopFlag = true;
 
-
-float integrated_error = 0;
-int count = 0,last_count;
-float pTerm,iTerm,dTerm,last_error,pTerm_Wheel,dTerm_Wheel;
-float Kp_Wheel,Kd_Wheel,K;
-
-int calculatePositionPid(float targetPosition, float currentPosition)   {
-  Kp_Wheel = 1;
-  Kd_Wheel = 1;
-  K=1;
-  
-  float error = targetPosition - currentPosition; 
-  pTerm = aggKp * error;
-  integrated_error += error;                                       
-  iTerm = aggKi * constrain(integrated_error, -GUARD_GAIN, GUARD_GAIN);
-  dTerm = aggKd * (error - last_error);                            
-  last_error = error;
-  
-  count = -Speed_R;
-  pTerm_Wheel = Kp_Wheel * count;
-  dTerm_Wheel = Kd_Wheel * (count - last_count);                            
-  last_count = count;
-  return -K*(pTerm + iTerm + dTerm + pTerm_Wheel + dTerm_Wheel);
-}
-
-
 void PWM_Calculate()
 {     
   Speed_Diff = Speed_L - Speed_R;
   Speed_Diff_ALL += Speed_Diff;    
  
-  //correctSpeedDiff();
-
   ftmp = (Speed_L + Speed_R) * 0.5;
   
   if( ftmp > 0)
@@ -542,10 +506,10 @@ void PWM_Calculate()
      balancePID.SetTunings(aggKp, aggKi, aggKd);
   }
 
-  balancePID.Compute(2.5 * Speed_Need);
+  balancePID.Compute(aggKd * Speed_Need);
   
   mSpeed = -constrain(Output,-255,255);    
-    
+  
   if((Speed_Need != 0) && (Turn_Need == 0))
   {
     if(StopFlag == true)
@@ -553,15 +517,15 @@ void PWM_Calculate()
       Speed_Diff_ALL = 0;
       StopFlag = false;
     }
-    pwm_r = constrain(int(mSpeed - Turn_Need - adjustRMotor - Speed_Diff_ALL),-255,255);
-    pwm_l = constrain(int(mSpeed + Turn_Need + adjustLMotor + Speed_Diff_ALL ),-255,255);
+    pwm_r = constrain(int(mSpeed - Turn_Need - Speed_Diff_ALL),-255,255);
+    pwm_l = constrain(int(mSpeed + Turn_Need + Speed_Diff_ALL ),-255,255);
   
   }
   else
   {
     StopFlag = true;
-    pwm_r = constrain(int(mSpeed - Turn_Need - adjustRMotor),-255,255);
-    pwm_l = constrain(int(mSpeed + Turn_Need + adjustLMotor),-255,255);
+    pwm_r = constrain(int(mSpeed - Turn_Need ),-255,255);
+    pwm_l = constrain(int(mSpeed + Turn_Need ),-255,255);
   }
   
   Speed_L = 0;
@@ -706,6 +670,7 @@ In case of Self-Balancing Robot-
 P-P determines the force with which the robot will correct itself. A lower P shows robot’s inability to balance itself and a higher P will shows the violent behavior.
 I-I determines the response time of robot for correcting itself. Higher the P, Faster it will response.
 D- D determines the sensitivity of robot to the error in its state. It is used to smoothen/depress the robot oscillations. A lower D is unable to remove oscillations and a higher D will cause violent vibrations.*/
+
 
 
 
