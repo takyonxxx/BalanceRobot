@@ -115,9 +115,9 @@ void setup() {
   Serial.begin(115200);
   Serial1.begin(115200);
 
-  aggKp=195;
-  aggKi=475;
-  aggKd=2.4;
+  aggKp=190;
+  aggKi=425;
+  aggKd=2.55;
   Correction = 0;
 
   ReadFromEEprom(&ReadingData);
